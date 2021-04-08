@@ -2,9 +2,9 @@
   "name": "trading-bot",
   "version": "0.3.0",
   "description": "My Trading Bot",
-  "main": "index_new.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node index_new.js",
+    "start": "node index.js",
     "test": "node test.js"
   },
   "license": "MIT",

@@ -18,14 +18,10 @@ const provider = new ethers.providers.InfuraProvider('mainnet', process.env.INFU
 const wallet = new ethers.Wallet(privateKey, provider);
 const UniswapV2Pair = require('./abis/IUniswapV2Pair.json');
 const UniswapV2Factory = require('./abis/IUniswapV2Factory.json');
-const ETH_TRADE = ethers.BigNumber.from(3)
-const DAI_TRADE = 40;
 
-// console.log(ethers.utils.parseEther(ETH_TRADE))
 
-// console.log(ethers.utils.formatEther(ETH_TRADE))
 
-  const wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+const wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
 
 async function checkPair(args) {
   const {
@@ -43,8 +39,6 @@ async function checkPair(args) {
     UniswapV2Factory.abi, wallet,
   );
 
-  // const daiAddress = '0x6b175474e89094c44da98b954eedeac495271d0f';
-
  
   const sushiPair = new ethers.Contract(
       await sushiFactory.getPair(wethAddress, address),
@@ -57,17 +51,17 @@ async function checkPair(args) {
   );
 
  
+  const ALT_TRADE = ethers.BigNumber.from(0)
+  const ETH_TRADE = await provider.getBalance(flashLoanerAddress)
+  console.log(ETH_TRADE)
+  console.log("my balance", ethers.utils.formatEther(ETH_TRADE))
 
-  const myBalance = await provider.getBalance(flashLoanerAddress)
-  console.log("my balance", ethers.utils.formatEther(myBalance))
-//   console.log(sushiPair)
-//  console.log("END OF PAIR")
-//   console.log("")
     // provider.on('block', async (blockNumber) => {
-    //   // try {
+      // try {
     //     console.log(blockNumber);
     // })
-        //get reserves
+
+        //get reserves/price
         const sushiReserves = await sushiPair.getReserves();
         const uniswapReserves = await uniswapPair.getReserves();
 
@@ -84,8 +78,7 @@ async function checkPair(args) {
         const shouldStartEth = priceUniswap < priceSushiswap;
         const spread = Math.abs((priceSushiswap / priceUniswap - 1) * 100) - 0.6;
 
-        const shouldTrade = spread > (
-          (shouldStartEth ? ETH_TRADE : DAI_TRADE) / Number(ethers.utils.formatEther(uniswapReserves[shouldStartEth ? 1 : 0])));
+        const shouldTrade = spread > ((shouldStartEth ? ETH_TRADE : ALT_TRADE) / Number(ethers.utils.formatEther(uniswapReserves[shouldStartEth ? 1 : 0])));
         
         console.table([{
           'Token': name,
@@ -97,50 +90,22 @@ async function checkPair(args) {
           'Timestamp': moment().tz('America/Los_Angeles').format()
         }])
 
-        // if (!shouldTrade) return
+        if (!shouldTrade) return
         
+        const gasLimit = ethers.BigNumber.from(21000)
 
-        const dummyAddress = 0x1CCFBACD879967193967e6977AF400838900E146
-        
-        // const gasLimit = 21000
-        // let gasPriceWei = ethers.BigNumber.from("20902747399");
-        // const gasLimit = ethers.BigNumber.from("50000");
-
-        // console.log(" gas limit")
-        // console.log(ethers.utils.formatEther(gasLimit))
-        // let maxCostWei = gasPriceWei.mul(gasLimit)
-
-
-        // console.log("Max Cost: " + maxCostWei.toString());
-        // "Max Cost: 62708242197000000"
-        
-        const gasLimit = await uniswapPair.estimateGas.swap(
-      //     shouldStartEth ? DAI_TRADE : 0,
-      //  !shouldStartEth ? ethers.utils.parseEther(ETH_TRADE) : 0,
-      5, 0,
-          flashLoanerAddress,
-          ethers.utils.toUtf8Bytes('1'),
-        );
-        console.log("GAS LIMIT", gasLimit)
+        // const gasLimit = await uniswapPair.estimateGas.swap(
+        //   !shouldStartEth ? ETH_TRADE : 0,
+        //   shouldStartEth ? ALT_TRADE : 0,
+        //   flashLoanerAddress,
+        //   ethers.utils.toUtf8Bytes('1'),
+        // );
 
         const gasPrice = await wallet.getGasPrice();
-        // console.log("Gas Price")
-        //  console.log(ethers.utils.formatEther(gasPrice))
-        // console.log(gasPrice)
         const gasCost = Number(ethers.utils.formatEther(gasPrice.mul(gasLimit)));
-        // console.log("gasCost")
-        // console.log(gasCost)
-        // console.log(gasCost)
-        // console.log(gasCost)
-        // console.log(gasCost/ETH_TRADE)
-        // console.log("here")
-        // console.log(gasCost/ETH_TRADE)
-        const shouldSendTx = shouldStartEth ? (gasCost/ETH_TRADE) < spread : (gasCost/ (DAI_TRADE/priceUniswap) ) < spread;
-          // console.log("")
-          // console.log(name)
-          // console.log(shouldSendTx)
-        // don't trade if gasCost is higher than the spread
-        // if (!shouldSendTx) return;
+        const shouldSendTx = shouldStartEth ? (gasCost/ETH_TRADE) < spread : (gasCost/ (ALT_TRADE/priceUniswap) ) < spread;
+
+        if (!shouldSendTx) return;
         console.log(`Gas Price: ${gasPrice}`)
         console.log(`Gas Limit: ${gasLimit}`)
         console.log(`Should Start ETH? ${shouldStartEth}`)
@@ -149,11 +114,8 @@ async function checkPair(args) {
           gasLimit,
         };
       
-        console.log("")
-        console.log("")
-        console.log("")
         // const tx = await uniswapPair.swap(
-        //   shouldStartEth ? DAI_TRADE : 0,
+        //   shouldStartEth ? ALT_TRADE : 0,
         //   !shouldStartEth ? ethers.utils.parseEther(ETH_TRADE) : 0,
         //   flashLoanerAddress,
         //   ethers.utils.toUtf8Bytes('1'), options,
@@ -174,23 +136,11 @@ async function checkPair(args) {
 }
 
 
-
-
-
-
 let priceMonitor
 let monitoringPrice = false
 
-
-
-
-
-
-
 const monitorPrice = async () => {
 
-  // const balance = await provider.getBalance(flashLoanerAddress)
-  // console.log(Number(ethers.utils.formatUnits(balance, 18)))
 
   if(monitoringPrice) {
       return
@@ -205,25 +155,24 @@ const monitorPrice = async () => {
         name: "DAI", address: "0x6b175474e89094c44da98b954eedeac495271d0f"
       })
 
-      // await checkPair({
-      //   name: "LINK", address: "0x514910771af9ca656af840dff83e8264ecf986ca"
-      // })
+      await checkPair({
+        name: "LINK", address: "0x514910771af9ca656af840dff83e8264ecf986ca"
+      })
 
-      // await checkPair({
-      //   name: "BOR", address: "0x3c9d6c1C73b31c837832c72E04D3152f051fc1A9"
-      // })
+      await checkPair({
+        name: "BOR", address: "0x3c9d6c1C73b31c837832c72E04D3152f051fc1A9"
+      })
 
-
-      // await checkPair({
-      //   name: "COMP", address: "0xc00e94cb662c3520282e6f5717214004a7f26888"
-      // })
+      await checkPair({
+        name: "COMP", address: "0xc00e94cb662c3520282e6f5717214004a7f26888"
+      })
       
 
     } catch (error) {
       console.error(error)
       monitoringPrice = false
       clearInterval(priceMonitor)
-      console.log("FUCK")
+      console.log("There's an error")
       return
     }
 
@@ -236,10 +185,8 @@ const monitorPrice = async () => {
 console.log('Bot started!');
 
 
-const POLLING_INTERVAL = process.env.POLLING_INTERVAL || 3000 // 3 Seconds
+const POLLING_INTERVAL = process.env.POLLING_INTERVAL || 3000 
 priceMonitor = setInterval(async () => { await monitorPrice() }, POLLING_INTERVAL)
 
 
-// 595 113 724 754 824 851 8
-// 599 762 367 762 422 431 186
 
